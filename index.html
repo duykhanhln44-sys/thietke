@@ -750,6 +750,7 @@ td.t{font-family:var(--f-ui)}
 tr.tot td{font-weight:600;background:var(--accent-soft)}
 td input{padding:5px 6px;font-family:var(--f-mono);font-size:13px;width:120px}
 td input.nm{width:56px}
+.otct td{padding:5px 4px}.otct td input{width:90px;font-size:12px}.otct .acts{display:flex;flex-direction:column;gap:4px;align-items:stretch}.otct td input.nm{width:58px}.otct .btn.sm{padding:5px 7px}
 
 /* Map */
 .mapwrap{position:relative;height:calc(100dvh - var(--top-h) - var(--nav-h) - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 70px);min-height:360px}
@@ -1208,7 +1209,8 @@ function nextName(t,h,pts){
   if(t==='ktPts'){const used=new Set([...pts,...h.loPts].map(p=>p.name));for(let i=0;i<26;i++){const c=String.fromCharCode(65+i);if(!used.has(c))return c}return 'K'+(pts.length+1)}
   const nums=[...pts,...h.ktPts].map(p=>parseInt(p.name)).filter(isFinite);return String(nums.length?Math.max(...nums)+1:1);
 }
-function addOtcAt(p){const h=cur();const o={id:uid(),name:'OTC'+(h.otcs.length+1),x:p.x,y:p.y,trees:{}};h.otcs.push(o);selOtc=o.id;delete h.sample;changed(true);renderMapPanel();toast(`Đã đặt ${o.name}`)}
+function nextOtcName(h){const used=new Set(h.otcs.map(o=>o.name));let i=1;while(used.has('OTC'+i))i++;return 'OTC'+i}
+function addOtcAt(p){const h=cur();const o={id:uid(),name:nextOtcName(h),x:p.x,y:p.y,trees:{}};h.otcs.push(o);selOtc=o.id;delete h.sample;changed(true);renderMapPanel();toast(`Đã đặt ${o.name}`)}
 function onMapClick(e){
   if(!mode)return;const h=cur();
   if(mode.type==='draw'){
@@ -1283,10 +1285,11 @@ function renderMapPanel(){
   ${polyTable('ktPts','Khu khai thác','var(--kt)')}
   ${polyTable('loPts','Ranh lô (nhận khoán)','var(--lo)')}
   <div class="card"><div class="row"><h2 class="grow"><span class="sw" style="background:var(--otc)"></span>Ô tiêu chuẩn</h2><span class="muted small">${h.otcW}×${h.otcL} m</span></div>
-  ${h.otcs.length?`<div class="tw"><table><thead><tr><th>Tên</th><th>X (m)</th><th>Y (m)</th><th>Cây</th><th></th></tr></thead><tbody>
-  ${h.otcs.map((o,i)=>`<tr><td><input class="nm" data-o="${i}" data-f="name" value="${esc(o.name)}"></td><td><input data-o="${i}" data-f="x" inputmode="decimal" value="${o.x??''}"></td><td><input data-o="${i}" data-f="y" inputmode="decimal" value="${o.y??''}"></td><td>${Object.values(o.trees||{}).reduce((s,a)=>s+a.length,0)}</td><td><button class="btn sm" data-goto="${o.id}">Nhập</button></td></tr>`).join('')}
+  ${h.otcs.length?`<div class="tw"><table class="otct"><thead><tr><th>Tên · cây</th><th>X (m)</th><th>Y (m)</th><th></th></tr></thead><tbody>
+  ${h.otcs.map((o,i)=>`<tr><td class="l"><input class="nm" data-o="${i}" data-f="name" value="${esc(o.name)}"><div class="small muted">${Object.values(o.trees||{}).reduce((s,a)=>s+a.length,0)} cây</div></td><td><input data-o="${i}" data-f="x" inputmode="decimal" value="${o.x??''}"></td><td><input data-o="${i}" data-f="y" inputmode="decimal" value="${o.y??''}"></td><td><div class="acts"><button class="btn sm" data-goto="${o.id}">Nhập</button><button class="btn sm dng" data-delotc="${o.id}" aria-label="Xoá ${esc(o.name)}">✕</button></div></td></tr>`).join('')}
   </tbody></table></div>`:'<p class="muted small" style="margin:0">Chưa có ô. Bấm “Đặt ô TC” rồi chạm vào bản đồ.</p>'}
-  <div class="row"><button class="btn sm" data-paste="otcs">Dán tọa độ ô</button></div></div>
+  <div class="row"><button class="btn sm pri" id="mpAddOtc">+ Thêm OTC</button><button class="btn sm" id="mpAddOtcGps">+ OTC tại GPS</button><button class="btn sm" data-paste="otcs">Dán tọa độ ô</button></div>
+  <p class="small muted" style="margin:0">“+ Thêm OTC” đặt ô ở giữa khu khai thác (hoặc giữa màn hình bản đồ); kéo ô bằng “Sửa đỉnh / dời ô” hoặc sửa X, Y trong bảng. Bấm ✕ hai lần để xoá ô.</p></div>
   <p class="small muted" style="margin:0">Hệ VN-2000, kinh tuyến trục ${kttLabel(+h.lon0)}, múi 3°, k = 0,9999. X = hoành độ (≈ 5xx.xxx), Y = tung độ (≈ 1.xxx.xxx), giống bảng tọa độ trên bản đồ thiết kế. Đổi kinh tuyến trục ở tab Hồ sơ.</p>`;
 }
 $('#mpanel').addEventListener('change',e=>{
@@ -1303,6 +1306,20 @@ $('#mpanel').addEventListener('click',e=>{
   if(b.dataset.clear){if(b.dataset.armed){h[b.dataset.clear]=[];changed(true);renderMapPanel()}else{b.dataset.armed=1;b.textContent='Bấm lần nữa để xoá';b.classList.add('arm')}}
   if(b.dataset.addv){const k=b.dataset.addv,p=h[k],l=p[p.length-1];p.push({name:nextName(k,h,p),x:l.x+10,y:l.y+10});changed(true);renderMapPanel()}
   if(b.dataset.goto){selOtc=b.dataset.goto;showTab('otc')}
+  if(b.dataset.delotc){
+    const o=h.otcs.find(x=>x.id===b.dataset.delotc);if(!o)return;
+    if(!b.dataset.armed){const n=Object.values(o.trees||{}).reduce((s2,a)=>s2+a.length,0);b.dataset.armed=1;b.classList.add('arm');b.textContent=n?`Xoá cả ${n} cây?`:'Xoá?';setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.classList.remove('arm');b.textContent='✕'}},4000);return}
+    h.otcs=h.otcs.filter(x=>x.id!==o.id);if(selOtc===o.id)selOtc=null;delete h.sample;changed(true);renderMapPanel();toast(`Đã xoá ${o.name}`);
+  }
+  if(b.id==='mpAddOtc'){
+    let p;
+    if(h.ktPts.length>=3){const c=centroid(h.ktPts);const used=h.otcs.filter(o=>o.x!=null);p={x:rN(c.x,2),y:rN(c.y,2)};
+      // tránh chồng lên ô đã có: dời theo cạnh dài của khu KT
+      if(used.some(o=>Math.hypot(o.x-p.x,o.y-p.y)<30)){let bi=0,bl=0;h.ktPts.forEach((q,i)=>{const n=h.ktPts[(i+1)%h.ktPts.length];const d=Math.hypot(n.x-q.x,n.y-q.y);if(d>bl){bl=d;bi=i}});const q=h.ktPts[bi],n=h.ktPts[(bi+1)%h.ktPts.length];const ux=(n.x-q.x)/bl,uy=(n.y-q.y)/bl;for(let k=1;k<20;k++){for(const sg of[1,-1]){const t={x:rN(c.x+ux*k*30*sg,2),y:rN(c.y+uy*k*30*sg,2)};if(!used.some(o=>Math.hypot(o.x-t.x,o.y-t.y)<30)){p=t;k=99;break}}}}
+    }else p=fromLL(map.getCenter(),h);
+    addOtcAt(p);if(TAB==='map')map.panTo(toLL(p.x,p.y,h));return;
+  }
+  if(b.id==='mpAddOtcGps'){getGPS().then(gp=>{const ll=showGps(gp);addOtcAt(fromLL(ll,h));map.panTo(ll)}).catch(err=>toast(err.message));return}
   if(b.dataset.paste)openPaste(b.dataset.paste);
 });
 function openPaste(k){
@@ -1387,7 +1404,7 @@ $('#tab-otc').addEventListener('click',e=>{
   if(b.id==='impCfgTg'){const p=$('#impCfg');p.hidden=!p.hidden;return}const h=cur();const o=h.otcs.find(x=>x.id===selOtc);
   if(b.dataset.otc){selOtc=b.dataset.otc;lastAdd=null;renderOtc()}
   else if(b.dataset.cls){selCls=b.dataset.cls;lastAdd=null;renderOtc();$('#cvIn').focus()}
-  else if(b.id==='otcAdd'){const n={id:uid(),name:'OTC'+(h.otcs.length+1),x:null,y:null,trees:{}};h.otcs.push(n);selOtc=n.id;changed(false);renderOtc()}
+  else if(b.id==='otcAdd'){const n={id:uid(),name:nextOtcName(h),x:null,y:null,trees:{}};h.otcs.push(n);selOtc=n.id;changed(false);renderOtc()}
   else if(b.id==='addTree')addTree();
   else if(b.dataset.rm!==undefined){o.trees[selCls].splice(+b.dataset.rm,1);lastAdd=null;changed(false);renderOtc()}
   else if(b.id==='undoTree'&&lastAdd){const oo=h.otcs.find(x=>x.id===lastAdd.otc);oo&&oo.trees[lastAdd.k]?.pop();lastAdd=null;changed(false);renderOtc()}
