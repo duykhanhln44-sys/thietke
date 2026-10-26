@@ -1024,10 +1024,13 @@ function changed(redrawMap){save();renderHeader();if(redrawMap)drawMap()}
 
 /* ================= Tab Hồ sơ ================= */
 let armDel=false;
+function newHoso(){const h=blankHoso();const c=cur();['coQuan','donVi','tram','nguoiLap','canBo','diaDanh','tinhKy','lon0','otcW','otcL','f','heSoCong','luongCS','heSoLuong','ngayCong','xa','tinh','nguonGoc'].forEach(k=>h[k]=c[k]);h.classes=c.classes.map(x=>({...x}));store.list.push(h);store.cur=h.id;armDel=false;selOtc=null;save();renderHeader();drawMap(true);return h}
+function switchHoso(id){store.cur=id;armDel=false;selOtc=null;save();renderHeader();drawMap(true)}
+const hosoLabel=x=>`${x.ten||'Chưa đặt tên'}${x.lo?` – Lô ${x.lo}`:''}${x.khoanh?` K${x.khoanh}`:''}${x.tieuKhu?` TK${x.tieuKhu}`:''}`;
 function renderHoso(){
   const h=cur();
   const F=(k,label,ph='',cls='')=>`<label class="fld ${cls}"><span>${label}</span><input id="f_${k}" data-k="${k}" value="${esc(h[k])}" placeholder="${esc(ph)}" ${NUMK.includes(k)?'inputmode="decimal"':''}></label>`;
-  const opts=store.list.slice().sort((a,b)=>b.updated-a.updated).map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${esc(x.ten||'Chưa đặt tên')}${x.lo?` – Lô ${esc(x.lo)} K${esc(x.khoanh)} TK${esc(x.tieuKhu)}`:''}</option>`).join('');
+  const opts=store.list.slice().sort((a,b)=>b.updated-a.updated).map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${esc(hosoLabel(x))}</option>`).join('');
   const kttOpts=KTT.map(([v,l])=>`<option value="${v}" ${+h.lon0===v?'selected':''}>${l}</option>`).join('');
   $('#tab-hoso').innerHTML=`
   <div class="card">
@@ -1080,14 +1083,14 @@ function renderHoso(){
 }
 $('#tab-hoso').addEventListener('change',e=>{
   const h=cur(),t=e.target;
-  if(t.id==='hsSel'){store.cur=t.value;armDel=false;save();renderHeader();drawMap(true);renderHoso();return}
+  if(t.id==='hsSel'){switchHoso(t.value);renderHoso();return}
   if(t.id==='dtMode'){h.dtMode=t.value;changed(false);renderHoso();return}
-  if(t.dataset.k){const k=t.dataset.k;h[k]=NUMK.includes(k)?parseNum(t.value):t.value;if(k==='dtManual')h[k]=t.value;delete h.sample;changed(k==='lon0');if(k==='lon0')drawMap(true);if(k==='dtManual')renderHoso();return}
+  if(t.dataset.k){const k=t.dataset.k;h[k]=NUMK.includes(k)?parseNum(t.value):t.value;if(k==='dtManual')h[k]=t.value;delete h.sample;changed(k==='lon0');renderMapStat();if(k==='lon0')drawMap(true);if(k==='dtManual')renderHoso();return}
   if(t.dataset.ci){const c=h.classes[+t.dataset.ci];c[t.dataset.cf]=t.dataset.cf==='name'?t.value:parseNum(t.value);changed(false)}
 });
 $('#tab-hoso').addEventListener('click',e=>{
   const id=e.target.id;
-  if(id==='hsNew'){const h=blankHoso();const c=cur();['coQuan','donVi','tram','nguoiLap','canBo','diaDanh','tinhKy','lon0','otcW','otcL','f','heSoCong','luongCS','heSoLuong','ngayCong','xa','tinh','nguonGoc'].forEach(k=>h[k]=c[k]);h.classes=c.classes.map(x=>({...x}));store.list.push(h);store.cur=h.id;armDel=false;save();renderHeader();drawMap(true);renderHoso();toast('Đã tạo hồ sơ mới');}
+  if(id==='hsNew'){newHoso();renderHoso();toast('Đã tạo hồ sơ mới')}
   if(id==='hsDup'){const h=JSON.parse(JSON.stringify(cur()));h.id=uid();h.ten=(h.ten||'')+' (bản sao)';delete h.sample;h.otcs.forEach(o=>o.id=uid());store.list.push(h);store.cur=h.id;save();renderHeader();renderHoso();toast('Đã nhân bản hồ sơ')}
   if(id==='hsDel'){
     if(!armDel){armDel=true;renderHoso();setTimeout(()=>{if(armDel){armDel=false;if(TAB==='hoso')renderHoso()}},4000);return}
@@ -1175,7 +1178,7 @@ function drawMap(fit){
 function renderMapStat(){
   const h=cur(),c=compute(h);
   const lo=areaHa(h.loPts);
-  $('#mstat').innerHTML=`<div><span class="sw" style="background:var(--lo)"></span><b>Ranh lô</b> ${nf(lo)} ha</div><div><span class="sw" style="background:var(--kt)"></span><b>Khu KT</b> ${nf(c.dt)} ha</div>${lo?`<div><b>Còn lại</b> ${nf(lo-c.dt)} ha</div>`:''}<div><span class="sw" style="background:var(--otc)"></span><b>Ô TC</b> ${h.otcs.length} · KTT ${kttLabel(+h.lon0)}</div>`;
+  $('#mstat').innerHTML=`<div style="font-family:var(--f-ui);font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(hosoLabel(h))}</div><div><span class="sw" style="background:var(--lo)"></span><b>Ranh lô</b> ${nf(lo)} ha</div><div><span class="sw" style="background:var(--kt)"></span><b>Khu KT</b> ${nf(c.dt)} ha</div>${lo?`<div><b>Còn lại</b> ${nf(lo-c.dt)} ha</div>`:''}<div><span class="sw" style="background:var(--otc)"></span><b>Ô TC</b> ${h.otcs.length} · KTT ${kttLabel(+h.lon0)}</div>`;
 }
 const LBL={loPts:'ranh lô',ktPts:'khu khai thác'};
 function renderTools(){
@@ -1266,7 +1269,17 @@ function polyTable(k,title,color){
 }
 function renderMapPanel(){
   const h=cur();
+  const F=(k,label,ph='',cls='')=>`<label class="fld ${cls}"><span>${label}</span><input data-k="${k}" value="${esc(h[k])}" placeholder="${esc(ph)}" ${NUMK.includes(k)?'inputmode="decimal"':''}></label>`;
+  const opts=store.list.slice().sort((a,b)=>b.updated-a.updated).map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${esc(hosoLabel(x))}</option>`).join('');
   $('#mpanel').innerHTML=`
+  <div class="card">
+    <div class="row"><h2 class="grow">Hồ sơ</h2><button class="btn sm pri" id="mpNew">+ Hồ sơ mới</button></div>
+    <select id="mpSel" aria-label="Chọn hồ sơ">${opts}</select>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr))">
+      ${F('ten','Chủ rừng / hộ nhận khoán','Nguyễn Văn A','w2')}${F('dam','Đám')}${F('lo','Lô')}${F('khoanh','Khoảnh')}${F('tieuKhu','Tiểu khu')}${F('xa','Xã')}${F('tinh','Tỉnh')}${F('dtNhanKhoan','DT nhận khoán (ha)')}
+    </div>
+    <p class="small muted" style="margin:0">Đồng bộ với tab Hồ sơ. Thông tin khác (đơn vị, đơn giá, thông số) sửa ở tab Hồ sơ.</p>
+  </div>
   ${polyTable('ktPts','Khu khai thác','var(--kt)')}
   ${polyTable('loPts','Ranh lô (nhận khoán)','var(--lo)')}
   <div class="card"><div class="row"><h2 class="grow"><span class="sw" style="background:var(--otc)"></span>Ô tiêu chuẩn</h2><span class="muted small">${h.otcW}×${h.otcL} m</span></div>
@@ -1278,11 +1291,14 @@ function renderMapPanel(){
 }
 $('#mpanel').addEventListener('change',e=>{
   const t=e.target,h=cur();
+  if(t.id==='mpSel'){switchHoso(t.value);renderMapPanel();toast('Đã mở hồ sơ '+hosoLabel(cur()));return}
+  if(t.dataset.k){const k=t.dataset.k;h[k]=NUMK.includes(k)?parseNum(t.value):t.value;delete h.sample;changed(false);renderMapStat();const sel=$('#mpSel');if(sel)sel.options[sel.selectedIndex].text=hosoLabel(h);return}
   if(t.dataset.p){const q=h[t.dataset.p][+t.dataset.i];if(t.dataset.f==='name')q.name=t.value;else{const v=parseNum(t.value);if(isFinite(v))q[t.dataset.f]=v}delete h.sample;changed(true);renderMapPanel()}
   if(t.dataset.o){const o=h.otcs[+t.dataset.o];if(t.dataset.f==='name')o.name=t.value;else{const v=parseNum(t.value);o[t.dataset.f]=isFinite(v)?v:null}changed(true)}
 });
 $('#mpanel').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const h=cur();
+  if(b.id==='mpNew'){newHoso();renderMapPanel();const i=document.querySelector('#mpanel [data-k=ten]');if(i){i.focus();i.scrollIntoView({block:'center'})}toast('Đã tạo hồ sơ mới – nhập tên chủ rừng');return}
   if(b.dataset.del){h[b.dataset.del].splice(+b.dataset.i,1);changed(true);renderMapPanel()}
   if(b.dataset.clear){if(b.dataset.armed){h[b.dataset.clear]=[];changed(true);renderMapPanel()}else{b.dataset.armed=1;b.textContent='Bấm lần nữa để xoá';b.classList.add('arm')}}
   if(b.dataset.addv){const k=b.dataset.addv,p=h[k],l=p[p.length-1];p.push({name:nextName(k,h,p),x:l.x+10,y:l.y+10});changed(true);renderMapPanel()}
